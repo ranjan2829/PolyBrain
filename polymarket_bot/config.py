@@ -6,7 +6,7 @@ load_dotenv()
 PRICE_SPIKE_THRESHOLD = float(os.getenv('PRICE_SPIKE_THRESHOLD', '0.015'))
 VOLUME_SPIKE_THRESHOLD = float(os.getenv('VOLUME_SPIKE_THRESHOLD', '1.5'))
 
-POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '1'))
+POLL_INTERVAL = 1
 MARKET_LIMIT = int(os.getenv('MARKET_LIMIT', '50'))
 
 ENABLE_PRICE_ALERTS = os.getenv('ENABLE_PRICE_ALERTS', 'true').lower() == 'true'

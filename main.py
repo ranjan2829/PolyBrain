@@ -91,6 +91,13 @@ def main():
             
             markets = client.get_markets(limit=MARKET_LIMIT, active=True)
             
+            # Filter out old/resolved markets - only keep truly active ones
+            active_markets = []
+            for m in markets:
+                if m.get('active', False) and m.get('conditionId'):
+                    active_markets.append(m)
+            markets = active_markets[:MARKET_LIMIT]
+            
             # Sort markets by volume/liquidity (descending) as a proxy for rising interest
             def _metric(m):
                 vol = float(m.get("volume", 0) or 0)
@@ -131,16 +138,35 @@ def main():
             
             spike_count = 0
             trades_executed = 0
+            markets_checked = 0
             
             for market in markets:
                 if not running:
                     break
                 
+                markets_checked += 1
+                condition_id = market.get('conditionId') or market.get('id')
+                outcomes = market.get('outcomes', [])
+                
                 detector.add_snapshot(market)
-                spike_data = detector.detect_spikes(market)
+                
+                orderbook_data = {}
+                if condition_id and outcomes:
+                    for outcome_idx in range(len(outcomes)):
+                        token_id = f"{condition_id}-{outcome_idx}"
+                        ob = client.get_orderbook(token_id)
+                        if ob:
+                            outcome_name = outcomes[outcome_idx] if outcome_idx < len(outcomes) else f"Outcome{outcome_idx}"
+                            orderbook_data[outcome_name] = ob
+                
+                spike_data = detector.detect_spikes(market, orderbook_data)
                 
                 if spike_data:
                     spike_count += 1
+                    print(f"{Fore.YELLOW}SPIKE DETECTED! Market: {market.get('question', 'Unknown')[:60]}...{Style.RESET_ALL}")
+                    for spike in spike_data.get('spikes', []):
+                        if spike.get('type') == 'price':
+                            print(f"  {Fore.GREEN}Price {spike.get('direction')}: {spike.get('outcome')} {spike.get('previous_price'):.4f} -> {spike.get('current_price'):.4f} ({spike.get('change_percent'):.2f}%){Style.RESET_ALL}")
                     notifier.send_alert(spike_data)
                     
                     if ENABLE_TRADING and trader.can_trade():
@@ -148,6 +174,13 @@ def main():
                         if position:
                             trades_executed += 1
                             print(f"{Fore.GREEN}Position opened: {position['position_id'][:8]}...{Style.RESET_ALL}")
+                
+                if markets_checked % 10 == 0 or spike_data:
+                    current_prices = spike_data.get('current_prices', {}) if spike_data else {}
+                    if current_prices:
+                        print(f"{Fore.CYAN}Checked {markets_checked}/{len(markets)} markets. Latest prices: {current_prices}{Style.RESET_ALL}")
+                    elif condition_id:
+                        print(f"{Fore.YELLOW}Market {markets_checked}: {market.get('question', 'Unknown')[:50]}... No orderbook data{Style.RESET_ALL}")
             
             if spike_count == 0:
                 print(f"{Fore.GREEN}No spikes detected. Monitoring continues...{Style.RESET_ALL}")

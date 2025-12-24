@@ -79,19 +79,42 @@ class SpikeDetector:
         snapshot = MarketSnapshot(market, datetime.now().timestamp())
         self.redis.store_market_snapshot(snapshot.market_id, snapshot.to_dict())
     
-    def detect_spikes(self, market: Dict) -> Optional[Dict]:
+    def detect_spikes(self, market: Dict, orderbook_data: Optional[Dict] = None) -> Optional[Dict]:
         snapshot = MarketSnapshot(market, datetime.now().timestamp())
         market_id = snapshot.market_id
+        condition_id = snapshot.condition_id
         
         if snapshot.liquidity < MIN_MARKET_LIQUIDITY:
             return None
         
         previous_data = self.redis.get_previous_snapshot(market_id)
         if not previous_data:
+            self.redis.store_market_snapshot(market_id, snapshot.to_dict())
             return None
         
         previous_snapshot = MarketSnapshot.from_dict(previous_data)
         spikes = []
+        
+        if orderbook_data and isinstance(orderbook_data, dict):
+            current_prices = {}
+            for outcome_name, ob in orderbook_data.items():
+                if not isinstance(ob, dict):
+                    continue
+                asks = ob.get('asks', [])
+                bids = ob.get('bids', [])
+                price = 0.0
+                if asks and len(asks) > 0:
+                    best_ask = asks[0]
+                    price = float(best_ask.get('price') or best_ask.get('px') or best_ask.get('p') or 0)
+                elif bids and len(bids) > 0:
+                    best_bid = bids[0]
+                    price = float(best_bid.get('price') or best_bid.get('px') or best_bid.get('p') or 0)
+                
+                if price > 0:
+                    current_prices[outcome_name] = price
+            
+            if current_prices:
+                snapshot.prices = current_prices
         
         if ENABLE_PRICE_ALERTS:
             price_spike = self._detect_price_spike(previous_snapshot, snapshot)
@@ -120,41 +143,35 @@ class SpikeDetector:
         return None
     
     def _detect_price_spike(self, previous: MarketSnapshot, current: MarketSnapshot) -> Optional[Dict]:
-        for outcome, curr_price in current.prices.items():
-            if outcome in previous.prices:
-                prev_price = previous.prices[outcome]
-                if prev_price > 0:
-                    outcome_change = (curr_price - prev_price) / prev_price
-                    if abs(outcome_change) >= PRICE_SPIKE_THRESHOLD:
-                        return {
-                            'type': 'price',
-                            'direction': 'up' if outcome_change > 0 else 'down',
-                            'change_percent': abs(outcome_change) * 100,
-                            'previous_price': prev_price,
-                            'current_price': curr_price,
-                            'outcome': outcome,
-                            'threshold': PRICE_SPIKE_THRESHOLD * 100
-                        }
+        best_spike = None
+        best_change = 0
         
-        prev_avg = previous.get_avg_price()
-        curr_avg = current.get_avg_price()
+        for outcome in ['Yes', 'No']:
+            if outcome not in current.prices or outcome not in previous.prices:
+                continue
+            
+            curr_price = current.prices[outcome]
+            prev_price = previous.prices[outcome]
+            
+            if prev_price <= 0 or curr_price <= 0:
+                continue
+            
+            outcome_change = (curr_price - prev_price) / prev_price
+            abs_change = abs(outcome_change)
+            
+            if abs_change >= PRICE_SPIKE_THRESHOLD and abs_change > best_change:
+                best_change = abs_change
+                best_spike = {
+                    'type': 'price',
+                    'direction': 'up' if outcome_change > 0 else 'down',
+                    'change_percent': abs_change * 100,
+                    'previous_price': prev_price,
+                    'current_price': curr_price,
+                    'outcome': outcome,
+                    'threshold': PRICE_SPIKE_THRESHOLD * 100
+                }
         
-        if prev_avg == 0:
-            return None
-        
-        price_change = (curr_avg - prev_avg) / prev_avg
-        
-        if abs(price_change) >= PRICE_SPIKE_THRESHOLD:
-            return {
-                'type': 'price',
-                'direction': 'up' if price_change > 0 else 'down',
-                'change_percent': abs(price_change) * 100,
-                'previous_price': prev_avg,
-                'current_price': curr_avg,
-                'threshold': PRICE_SPIKE_THRESHOLD * 100
-            }
-        
-        return None
+        return best_spike
     
     def _detect_volume_spike(self, previous: MarketSnapshot, current: MarketSnapshot) -> Optional[Dict]:
         if previous.volume == 0:
