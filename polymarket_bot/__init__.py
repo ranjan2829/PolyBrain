@@ -1,10 +1,6 @@
-from .config import *
+"""Polymarket Bot - Data Fetching Client"""
 from .polymarket_client import PolymarketClient
-from .redis_storage import RedisStorage
-from .spike_detector import SpikeDetector, MarketSnapshot
-from .trader import PolymarketTrader
-from .position_manager import PositionManager
-from .notifier import Notifier
+from .config import *
 
-__version__ = "1.0.0"
-
+__version__ = "2.0.0"
+__all__ = ['PolymarketClient']
