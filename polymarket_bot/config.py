@@ -41,3 +41,6 @@ MAX_POSITIONS = int(os.getenv('MAX_POSITIONS', '5'))
 POLYGON_RPC_URL = os.getenv('POLYGON_RPC_URL', 'https://polygon-rpc.com')
 USDC_CONTRACT = os.getenv('USDC_CONTRACT', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174')
 
+# GigaBrain API Configuration
+GIGABRAIN_API_KEY = os.getenv('GIGABRAIN_API_KEY', '')
+GIGABRAIN_BASE_URL = os.getenv('GIGABRAIN_BASE_URL', 'https://api.gigabrain.gg')

@@ -1,10 +1,8 @@
-"""Market utility functions for slug generation and formatting."""
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List
+from typing import Dict
 
 
 def generate_market_slug(timestamp: int, symbol: str = 'BTC', timeframe: str = '15m') -> str:
-    """Generate market slug. 15m/4h use timestamp format, 1h uses date format."""
     symbol_lower = symbol.lower()
     
     if timeframe == '1h':
@@ -27,7 +25,6 @@ def generate_market_slug(timestamp: int, symbol: str = 'BTC', timeframe: str = '
 
 
 def get_interval_timestamps(timeframe: str) -> tuple:
-    """Get current and next interval timestamps for a timeframe."""
     interval_durations = {'15m': 900, '1h': 3600, '4h': 14400}
     interval_duration = interval_durations.get(timeframe, 900)
     
@@ -46,7 +43,6 @@ def get_interval_timestamps(timeframe: str) -> tuple:
 
 
 def normalize_market(market: Dict) -> Dict:
-    """Normalize market data to standard format."""
     condition_id = market.get('conditionId') or market.get('condition_id')
     if not condition_id:
         return None
@@ -65,7 +61,6 @@ def normalize_market(market: Dict) -> Dict:
 
 
 def parse_json_fields(market: Dict) -> Dict:
-    """Parse JSON string fields in market data."""
     for field in ['clobTokenIds', 'outcomes', 'outcomePrices']:
         if field in market and isinstance(market[field], str):
             import json

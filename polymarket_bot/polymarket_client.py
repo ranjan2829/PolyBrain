@@ -22,7 +22,6 @@ class PolymarketClient:
                    filter_crypto_timeframes: bool = True,
                    filter_financial: bool = True,
                    min_volume: float = 50000) -> List[Dict]:
-        """Fetch and filter markets for crypto timeframes (15m/1h/4h) and high-volume financial."""
         try:
             all_markets = []
             seen_condition_ids = set()
@@ -59,7 +58,6 @@ class PolymarketClient:
             return []
     
     def get_realtime_15m_markets(self) -> List[Dict]:
-        """Fetch 15m/1h/4h crypto markets in real-time."""
         try:
             realtime_markets = []
             seen = set()
@@ -77,7 +75,6 @@ class PolymarketClient:
             return []
     
     def get_orderbook(self, token_id: str) -> Optional[Dict]:
-        """Fetch CLOB orderbook for a given token_id."""
         try:
             resp = self.session.get(f"{self.api_url}/book", params={"token_id": token_id}, timeout=5)
             if resp.status_code == 200:
@@ -88,7 +85,6 @@ class PolymarketClient:
             return None
     
     def _fetch_user_data(self, endpoint: str, params: Dict) -> List[Dict]:
-        """Generic method to fetch user data from data-api."""
         try:
             resp = self.session.get(f"https://data-api.polymarket.com/{endpoint}", params=params, timeout=10)
             if resp.status_code == 200:
@@ -113,7 +109,6 @@ class PolymarketClient:
         })
     
     def find_active_crypto_timeframe_markets(self, timeframe: str = '15m', symbols: List[str] = None) -> List[Dict]:
-        """Find active crypto markets for specific timeframe using slug generation."""
         if symbols is None:
             symbols = ['BTC', 'ETH', 'SOL', 'XRP']
         
@@ -147,7 +142,6 @@ class PolymarketClient:
         return active_markets
     
     def get_market_by_slug(self, slug: str) -> Optional[Dict]:
-        """Get market details by slug."""
         if not slug:
             return None
         
@@ -163,7 +157,6 @@ class PolymarketClient:
             return None
     
     def get_market_prices(self, interval_start_ts: int, symbol: str = 'BTC', variant: str = 'fifteen') -> Optional[Dict]:
-        """Get prices from Polymarket's crypto-price API."""
         try:
             start_dt = datetime.fromtimestamp(interval_start_ts, tz=timezone.utc)
             duration = {'fifteen': 900, 'hour': 3600, 'four': 14400}.get(variant, 900)
@@ -190,6 +183,5 @@ class PolymarketClient:
             return None
     
     def get_market_close_price(self, interval_start_ts: int, symbol: str = 'BTC', variant: str = 'fifteen') -> Optional[float]:
-        """Get close price from crypto-price API."""
         prices = self.get_market_prices(interval_start_ts, symbol, variant)
         return prices.get('closePrice') if prices else None

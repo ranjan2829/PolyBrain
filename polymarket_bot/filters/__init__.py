@@ -1,9 +1,7 @@
-"""Market filtering utilities."""
 from typing import List, Dict
 
 
 def filter_financial_markets(markets: List[Dict], min_volume: float) -> List[Dict]:
-    """Filter high-volume financial markets."""
     financial_keywords = [
         'sp500', 'sp 500', 's&p', 'dow', 'nasdaq', 'stock', 'equity',
         'financial', 'fed', 'interest rate', 'inflation', 'gdp', 'treasury',
@@ -24,4 +22,3 @@ def filter_financial_markets(markets: List[Dict], min_volume: float) -> List[Dic
             filtered.append(m)
     
     return filtered
-
