@@ -13,6 +13,8 @@ from .data import (
     get_4h_fetcher,
 )
 from .copytrading import CopyTradingService, HourlyScheduler, LeaderboardFetcher, RedisCache
+from .db import Database, TradeRepository
+from .agent import CopyTradeAgent
 from .server import PolyBrainServer, create_server
 
 __version__ = "2.0.0"
@@ -35,6 +37,9 @@ __all__ = [
     'HourlyScheduler',
     'LeaderboardFetcher',
     'RedisCache',
+    'Database',
+    'TradeRepository',
+    'CopyTradeAgent',
     'PolyBrainServer',
     'create_server',
 ]
