@@ -184,3 +184,55 @@ class LeaderboardFetcher:
                     'volume': entry.volume
                 })
         return result
+    
+    def fetch_crypto_leaderboard(
+        self,
+        category: str = 'CRYPTO',
+        time_period: str = 'DAY',
+        order_by: str = 'PNL',
+        limit: int = 25
+    ) -> List[Dict]:
+        try:
+            url = f'{self.data_api_url}/v1/leaderboard'
+            params = {
+                'category': category,
+                'timePeriod': time_period,
+                'orderBy': order_by,
+                'limit': limit
+            }
+            
+            resp = self.session.get(url, params=params, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                
+                if isinstance(data, list):
+                    return data
+                elif isinstance(data, dict):
+                    return data.get('data', []) or data.get('entries', []) or []
+                
+                return []
+        except Exception as e:
+            print(f"Crypto leaderboard fetch failed: {e}")
+        
+        return []
+    
+    def get_crypto_wallet_addresses(
+        self,
+        time_period: str = 'DAY',
+        order_by: str = 'PNL',
+        limit: int = 25
+    ) -> List[str]:
+        entries = self.fetch_crypto_leaderboard(
+            category='CRYPTO',
+            time_period=time_period,
+            order_by=order_by,
+            limit=limit
+        )
+        
+        wallets = []
+        for entry in entries:
+            wallet = entry.get('user') or entry.get('address') or entry.get('wallet') or entry.get('taker')
+            if wallet:
+                wallets.append(wallet.lower() if isinstance(wallet, str) else str(wallet).lower())
+        
+        return wallets

@@ -14,6 +14,7 @@ from .models import (
     Timeframe,
 )
 from .gigabrain_client import GigaBrainClient
+from .dune_client import DuneClient
 from .config import *
 
 __version__ = "2.0.0"
@@ -29,4 +30,5 @@ __all__ = [
     'get_1h_fetcher',
     'get_4h_fetcher',
     'GigaBrainClient',
+    'DuneClient',
 ]
