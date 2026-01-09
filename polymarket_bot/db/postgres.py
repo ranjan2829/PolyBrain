@@ -102,6 +102,26 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_whale_moves_processed ON whale_moves(processed);
                 CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
                 CREATE INDEX IF NOT EXISTS idx_trades_whale ON trades(whale_wallet);
+                
+                CREATE TABLE IF NOT EXISTS brain_bets (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(10) NOT NULL,
+                    timeframe VARCHAR(10) NOT NULL,
+                    side VARCHAR(10) NOT NULL,
+                    entry_price DECIMAL(10, 4) NOT NULL,
+                    volume DECIMAL(20, 2),
+                    brain_reason TEXT,
+                    brain_decision VARCHAR(10) NOT NULL,
+                    order_id VARCHAR(100),
+                    size DECIMAL(20, 4),
+                    status VARCHAR(20) DEFAULT 'pending',
+                    current_price DECIMAL(10, 4),
+                    pnl DECIMAL(10, 4),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    resolved_at TIMESTAMPTZ
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_brain_bets_status ON brain_bets(status);
             """)
             self.conn.commit()
     

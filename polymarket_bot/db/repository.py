@@ -116,3 +116,60 @@ class TradeRepository:
             """
         )
         return result or {}
+    
+    def save_brain_bet(
+        self,
+        symbol: str,
+        timeframe: str,
+        side: str,
+        entry_price: float,
+        volume: float,
+        brain_reason: str,
+        brain_decision: str,
+        order_id: str = None,
+        size: float = None,
+        status: str = 'pending'
+    ) -> int:
+        return self.db.insert(
+            """
+            INSERT INTO brain_bets (symbol, timeframe, side, entry_price, volume, 
+                brain_reason, brain_decision, order_id, size, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (symbol, timeframe, side, entry_price, volume, brain_reason, 
+             brain_decision, order_id, size, status)
+        )
+    
+    def update_brain_bet(self, bet_id: int, current_price: float, pnl: float, status: str):
+        self.db.execute(
+            """
+            UPDATE brain_bets 
+            SET current_price = %s, pnl = %s, status = %s, resolved_at = NOW()
+            WHERE id = %s
+            """,
+            (current_price, pnl, status, bet_id)
+        )
+    
+    def get_brain_bets(self, status: str = None, limit: int = 50) -> List[Dict]:
+        if status:
+            return self.db.execute(
+                "SELECT * FROM brain_bets WHERE status = %s ORDER BY created_at DESC LIMIT %s",
+                (status, limit)
+            )
+        return self.db.execute(
+            "SELECT * FROM brain_bets ORDER BY created_at DESC LIMIT %s",
+            (limit,)
+        )
+    
+    def get_brain_pnl(self) -> Dict:
+        result = self.db.execute_one(
+            """
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as losses,
+                SUM(pnl) as total_pnl
+            FROM brain_bets WHERE status IN ('won', 'lost')
+            """
+        )
+        return result or {}
