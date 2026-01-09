@@ -13,6 +13,9 @@ from .data import (
     get_4h_fetcher,
 )
 from .copytrading import CopyTradingService, HourlyScheduler, LeaderboardFetcher, RedisCache
+from .markets import CryptoMarkets
+from .scalper import ScalperBot
+from .strategy import CryptoTrader
 from .db import Database, TradeRepository
 from .agent import CopyTradeAgent
 from .server import PolyBrainServer, create_server
@@ -37,6 +40,9 @@ __all__ = [
     'HourlyScheduler',
     'LeaderboardFetcher',
     'RedisCache',
+    'CryptoMarkets',
+    'ScalperBot',
+    'CryptoTrader',
     'Database',
     'TradeRepository',
     'CopyTradeAgent',

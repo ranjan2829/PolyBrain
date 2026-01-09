@@ -5,6 +5,9 @@ from datetime import datetime
 from .core import PolymarketClient, PolymarketTrader
 from .api import GigaBrainClient, DuneClient
 from .data import Timeframe, CryptoFetcherManager
+from .markets import CryptoMarkets
+from .scalper import ScalperBot
+from .strategy import CryptoTrader
 from .copytrading import CopyTradingService, HourlyScheduler
 from .db import Database, TradeRepository
 from .agent import CopyTradeAgent
@@ -19,6 +22,8 @@ class PolyBrainServer:
         self.trader = PolymarketTrader()
         self.copytrading = CopyTradingService()
         self.crypto_fetcher = CryptoFetcherManager()
+        self.markets = CryptoMarkets()
+        self.crypto_trader = CryptoTrader()
         self.wallet_address = WALLET_ADDRESS
         self.connected = False
         self.trading_enabled = ENABLE_TRADING
@@ -26,8 +31,10 @@ class PolyBrainServer:
         self.db = None
         self.repo = None
         self.agent = None
+        self.scalper = None
         self.scheduler = None
         self.agent_thread = None
+        self.scalper_thread = None
         self.running = False
         
         if POLYMARKET_API_KEY:
@@ -81,6 +88,25 @@ class PolyBrainServer:
             self.agent.close()
         print("Agent stopped")
     
+    def start_scalper(self, interval: int = 30):
+        if self.scalper_thread and self.scalper_thread.is_alive():
+            print("Scalper already running")
+            return
+        
+        self.scalper = ScalperBot()
+        
+        def run():
+            self.scalper.run(interval=interval)
+        
+        self.scalper_thread = threading.Thread(target=run, daemon=True)
+        self.scalper_thread.start()
+        print("ScalperBot started")
+    
+    def stop_scalper(self):
+        if self.scalper:
+            self.scalper.stop()
+        print("Scalper stopped")
+    
     def start(self, enable_agent: bool = True, agent_interval: int = 60):
         print("=" * 50)
         print("PolyBrain Server Starting...")
@@ -104,6 +130,7 @@ class PolyBrainServer:
     def stop(self):
         print("\nShutting down...")
         self.stop_agent()
+        self.stop_scalper()
         if self.scheduler:
             self.scheduler.stop()
         if self.db:
@@ -194,6 +221,34 @@ class PolyBrainServer:
             }
         return result
     
+    def get_15m_markets(self, symbols: List[str] = None) -> List[Dict]:
+        return self.markets.to_dict(self.markets.get_15m(symbols))
+    
+    def get_1h_markets(self, symbols: List[str] = None) -> List[Dict]:
+        return self.markets.to_dict(self.markets.get_1h(symbols))
+    
+    def get_4h_markets(self, symbols: List[str] = None) -> List[Dict]:
+        return self.markets.to_dict(self.markets.get_4h(symbols))
+    
+    def get_all_markets(self, symbols: List[str] = None) -> Dict[str, List[Dict]]:
+        all_markets = self.markets.get_all(symbols)
+        return {tf: self.markets.to_dict(mkts) for tf, mkts in all_markets.items()}
+    
+    def trade_crypto(self, symbol: str, timeframe: str, outcome: str, size: float = None) -> Optional[Dict]:
+        return self.crypto_trader.place_trade(symbol, timeframe, outcome, size)
+    
+    def buy_up(self, symbol: str, timeframe: str, size: float = None) -> Optional[Dict]:
+        return self.crypto_trader.buy_up(symbol, timeframe, size)
+    
+    def buy_down(self, symbol: str, timeframe: str, size: float = None) -> Optional[Dict]:
+        return self.crypto_trader.buy_down(symbol, timeframe, size)
+    
+    def auto_trade_crypto(self, strategy: str = 'momentum') -> List[Dict]:
+        return self.crypto_trader.scan_and_trade(strategy)
+    
+    def get_trading_status(self) -> Dict:
+        return self.crypto_trader.get_status()
+    
     def place_buy_order(self, token_id: str, size: float, price: float) -> Optional[Dict]:
         if not self.trading_enabled:
             print("Trading disabled")
@@ -239,7 +294,8 @@ class PolyBrainServer:
                 'copytrading': True,
                 'crypto_fetcher': True,
                 'trading': bool(self.trader.api_key and self.trader.api_secret),
-                'agent': self.agent is not None
+                'agent': self.agent is not None,
+                'scalper': self.scalper is not None
             }
         }
 
