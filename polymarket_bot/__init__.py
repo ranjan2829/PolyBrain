@@ -15,6 +15,8 @@ from .models import (
 )
 from .gigabrain_client import GigaBrainClient
 from .dune_client import DuneClient
+from .trader import PolymarketTrader
+from .server import PolyBrainServer, create_server
 from .config import *
 
 __version__ = "2.0.0"
@@ -31,4 +33,7 @@ __all__ = [
     'get_4h_fetcher',
     'GigaBrainClient',
     'DuneClient',
+    'PolymarketTrader',
+    'PolyBrainServer',
+    'create_server',
 ]

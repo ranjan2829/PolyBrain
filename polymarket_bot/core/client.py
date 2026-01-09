@@ -1,9 +1,9 @@
 import requests
 from typing import List, Dict, Optional
 from datetime import datetime, timezone
-from .config import POLYMARKET_API_URL, POLYMARKET_API_KEY
-from .market_utils import generate_market_slug, get_interval_timestamps, normalize_market, parse_json_fields
-from .filters import filter_financial_markets
+from ..config import POLYMARKET_API_URL, POLYMARKET_API_KEY
+from ..utils.market import generate_market_slug, get_interval_timestamps, normalize_market, parse_json_fields
+from ..data.filters import filter_financial_markets
 
 
 class PolymarketClient:
