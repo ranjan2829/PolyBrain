@@ -2,8 +2,8 @@ import time
 from typing import List, Dict, Optional
 from datetime import datetime
 from .leaderboard import LeaderboardFetcher
-from .redis_cache import RedisCache
-from ..polymarket_client import PolymarketClient
+from .cache import RedisCache
+from ..core.client import PolymarketClient
 
 
 class CopyTradingService:
@@ -100,7 +100,7 @@ class CopyTradingService:
             last_time = datetime.fromisoformat(last_update)
             elapsed = (datetime.now() - last_time).total_seconds()
             return elapsed >= self.cache_ttl
-        except:
+        except Exception:
             return True
     
     def get_cached_whales_with_trades(self) -> List[Dict]:

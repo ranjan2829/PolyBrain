@@ -43,7 +43,7 @@ class RedisCache:
                 return None
             try:
                 return json.loads(value)
-            except:
+            except Exception:
                 return value
         except Exception as e:
             print(f"Redis get error: {e}")
@@ -63,7 +63,7 @@ class RedisCache:
             return False
         try:
             return self.client.exists(key) > 0
-        except:
+        except Exception:
             return False
     
     def cache_whale(self, wallet: str, data: Dict, ttl: int = 3600):

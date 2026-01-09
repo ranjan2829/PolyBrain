@@ -1,18 +1,11 @@
 from typing import List, Dict, Optional
 from datetime import datetime
 
-from .polymarket_client import PolymarketClient
-from .gigabrain_client import GigaBrainClient
-from .dune_client import DuneClient
-from .trader import PolymarketTrader
+from .core import PolymarketClient, PolymarketTrader
+from .api import GigaBrainClient, DuneClient
+from .data import Timeframe, CryptoFetcherManager
 from .copytrading import CopyTradingService, HourlyScheduler
-from .fetchers import CryptoFetcherManager
-from .models import Timeframe
-from .config import (
-    WALLET_ADDRESS,
-    POLYMARKET_API_KEY,
-    ENABLE_TRADING
-)
+from .config import WALLET_ADDRESS, POLYMARKET_API_KEY, ENABLE_TRADING
 
 
 class PolyBrainServer:
