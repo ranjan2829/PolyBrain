@@ -1,3 +1,4 @@
+import threading
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -5,6 +6,8 @@ from .core import PolymarketClient, PolymarketTrader
 from .api import GigaBrainClient, DuneClient
 from .data import Timeframe, CryptoFetcherManager
 from .copytrading import CopyTradingService, HourlyScheduler
+from .db import Database, TradeRepository
+from .agent import CopyTradeAgent
 from .config import WALLET_ADDRESS, POLYMARKET_API_KEY, ENABLE_TRADING
 
 
@@ -20,6 +23,13 @@ class PolyBrainServer:
         self.connected = False
         self.trading_enabled = ENABLE_TRADING
         
+        self.db = None
+        self.repo = None
+        self.agent = None
+        self.scheduler = None
+        self.agent_thread = None
+        self.running = False
+        
         if POLYMARKET_API_KEY:
             self.connected = True
     
@@ -31,11 +41,74 @@ class PolyBrainServer:
         try:
             _ = self.polymarket.get_user_positions(self.wallet_address, limit=1)
             self.connected = True
-            print(f"Connected to Polymarket account: {self.wallet_address}")
+            print(f"Connected to Polymarket: {self.wallet_address}")
             return True
         except Exception as e:
             print(f"Connection failed: {e}")
             return False
+    
+    def connect_db(self) -> bool:
+        try:
+            self.db = Database()
+            self.db.connect()
+            self.db.init_tables()
+            self.repo = TradeRepository(self.db)
+            print("Connected to PostgreSQL")
+            return True
+        except Exception as e:
+            print(f"Database connection failed: {e}")
+            return False
+    
+    def start_agent(self, top_n: int = 20, interval: int = 60):
+        if self.agent_thread and self.agent_thread.is_alive():
+            print("Agent already running")
+            return
+        
+        self.agent = CopyTradeAgent()
+        self.agent.connect()
+        self.running = True
+        
+        def run():
+            self.agent.monitor_whales(top_n=top_n, interval=interval)
+        
+        self.agent_thread = threading.Thread(target=run, daemon=True)
+        self.agent_thread.start()
+        print(f"CopyTradeAgent started (monitoring {top_n} whales)")
+    
+    def stop_agent(self):
+        self.running = False
+        if self.agent:
+            self.agent.close()
+        print("Agent stopped")
+    
+    def start(self, enable_agent: bool = True, agent_interval: int = 60):
+        print("=" * 50)
+        print("PolyBrain Server Starting...")
+        print("=" * 50)
+        
+        self.connect()
+        self.connect_db()
+        
+        if enable_agent and self.connected:
+            self.start_agent(interval=agent_interval)
+        
+        self.scheduler = self.start_whale_monitoring()
+        
+        print("\nServer running. Services:")
+        status = self.get_status()
+        for service, active in status['services'].items():
+            print(f"  {service}: {'✓' if active else '✗'}")
+        
+        return self
+    
+    def stop(self):
+        print("\nShutting down...")
+        self.stop_agent()
+        if self.scheduler:
+            self.scheduler.stop()
+        if self.db:
+            self.db.close()
+        print("Server stopped.")
     
     def get_account_info(self) -> Dict:
         if not self.connected:
@@ -99,9 +172,8 @@ class PolyBrainServer:
     
     def start_whale_monitoring(self, top_n: int = 20, interval: int = 3600):
         def sync_task():
-            print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Syncing whales...")
+            print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Syncing whales...")
             self.sync_whales(top_n)
-            print("Sync completed.")
         
         scheduler = HourlyScheduler(sync_task, interval_seconds=interval)
         scheduler.start()
@@ -124,13 +196,13 @@ class PolyBrainServer:
     
     def place_buy_order(self, token_id: str, size: float, price: float) -> Optional[Dict]:
         if not self.trading_enabled:
-            print("Trading is disabled in config")
+            print("Trading disabled")
             return None
         return self.trader.buy(token_id, size, price)
     
     def place_sell_order(self, token_id: str, size: float, price: float) -> Optional[Dict]:
         if not self.trading_enabled:
-            print("Trading is disabled in config")
+            print("Trading disabled")
             return None
         return self.trader.sell(token_id, size, price)
     
@@ -143,25 +215,34 @@ class PolyBrainServer:
     def get_order_status(self, order_id: str) -> Optional[Dict]:
         return self.trader.get_order_status(order_id)
     
+    def get_trade_history(self, limit: int = 50) -> List[Dict]:
+        if self.repo:
+            return self.repo.get_trade_history(limit)
+        return []
+    
+    def get_pnl_stats(self) -> Dict:
+        if self.repo:
+            return self.repo.get_pnl_summary()
+        return {}
+    
     def get_status(self) -> Dict:
         return {
             'connected': self.connected,
             'wallet': self.wallet_address,
             'trading_enabled': self.trading_enabled,
-            'account_info': self.get_account_info() if self.connected else {},
+            'agent_running': self.agent_thread.is_alive() if self.agent_thread else False,
             'services': {
-                'polymarket': True,
+                'polymarket': self.connected,
                 'gigabrain': bool(self.gigabrain.api_key),
                 'dune': bool(self.dune.api_key),
+                'database': self.db is not None,
                 'copytrading': True,
                 'crypto_fetcher': True,
-                'trading': bool(self.trader.api_key and self.trader.api_secret)
+                'trading': bool(self.trader.api_key and self.trader.api_secret),
+                'agent': self.agent is not None
             }
         }
 
 
 def create_server() -> PolyBrainServer:
-    server = PolyBrainServer()
-    if WALLET_ADDRESS:
-        server.connect()
-    return server
+    return PolyBrainServer()
