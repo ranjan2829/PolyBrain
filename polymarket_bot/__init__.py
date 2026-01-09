@@ -15,7 +15,7 @@ from .data import (
 from .copytrading import CopyTradingService, HourlyScheduler, LeaderboardFetcher, RedisCache
 from .markets import CryptoMarkets
 from .scalper import ScalperBot
-from .strategy import CryptoTrader
+from .strategy import SmartStrategy, quick_scan, quick_trade
 from .db import Database, TradeRepository
 from .agent import CopyTradeAgent
 from .server import PolyBrainServer, create_server
@@ -42,7 +42,9 @@ __all__ = [
     'RedisCache',
     'CryptoMarkets',
     'ScalperBot',
-    'CryptoTrader',
+    'SmartStrategy',
+    'quick_scan',
+    'quick_trade',
     'Database',
     'TradeRepository',
     'CopyTradeAgent',

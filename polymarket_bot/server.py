@@ -7,7 +7,7 @@ from .api import GigaBrainClient, DuneClient
 from .data import Timeframe, CryptoFetcherManager
 from .markets import CryptoMarkets
 from .scalper import ScalperBot
-from .strategy import CryptoTrader
+from .strategy import SmartStrategy
 from .copytrading import CopyTradingService, HourlyScheduler
 from .db import Database, TradeRepository
 from .agent import CopyTradeAgent
@@ -23,7 +23,7 @@ class PolyBrainServer:
         self.copytrading = CopyTradingService()
         self.crypto_fetcher = CryptoFetcherManager()
         self.markets = CryptoMarkets()
-        self.crypto_trader = CryptoTrader()
+        self.smart = SmartStrategy()
         self.wallet_address = WALLET_ADDRESS
         self.connected = False
         self.trading_enabled = ENABLE_TRADING
@@ -64,6 +64,7 @@ class PolyBrainServer:
             return True
         except Exception as e:
             print(f"Database connection failed: {e}")
+            self.db = None
             return False
     
     def start_agent(self, top_n: int = 20, interval: int = 60):
@@ -113,10 +114,12 @@ class PolyBrainServer:
         print("=" * 50)
         
         self.connect()
-        self.connect_db()
+        db_connected = self.connect_db()
         
-        if enable_agent and self.connected:
+        if enable_agent and self.connected and db_connected:
             self.start_agent(interval=agent_interval)
+        elif enable_agent and not db_connected:
+            print("Agent disabled (no database)")
         
         self.scheduler = self.start_whale_monitoring()
         
@@ -234,20 +237,14 @@ class PolyBrainServer:
         all_markets = self.markets.get_all(symbols)
         return {tf: self.markets.to_dict(mkts) for tf, mkts in all_markets.items()}
     
-    def trade_crypto(self, symbol: str, timeframe: str, outcome: str, size: float = None) -> Optional[Dict]:
-        return self.crypto_trader.place_trade(symbol, timeframe, outcome, size)
+    def scan_opportunities(self) -> List[Dict]:
+        return self.smart.status()
     
-    def buy_up(self, symbol: str, timeframe: str, size: float = None) -> Optional[Dict]:
-        return self.crypto_trader.buy_up(symbol, timeframe, size)
-    
-    def buy_down(self, symbol: str, timeframe: str, size: float = None) -> Optional[Dict]:
-        return self.crypto_trader.buy_down(symbol, timeframe, size)
-    
-    def auto_trade_crypto(self, strategy: str = 'momentum') -> List[Dict]:
-        return self.crypto_trader.scan_and_trade(strategy)
+    def auto_trade(self, size: float = 5.0, max_trades: int = 3) -> List[Dict]:
+        return self.smart.run(size, max_trades)
     
     def get_trading_status(self) -> Dict:
-        return self.crypto_trader.get_status()
+        return self.smart.status()
     
     def place_buy_order(self, token_id: str, size: float, price: float) -> Optional[Dict]:
         if not self.trading_enabled:
